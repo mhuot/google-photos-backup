@@ -1,0 +1,26 @@
+# Google Photos API and Authentication
+google-auth>=2.15.0
+google-auth-oauthlib>=0.8.0
+google-auth-httplib2>=0.1.0
+google-api-python-client>=2.70.0
+
+# Image Processing
+Pillow>=9.3.0
+pillow-heif>=0.10.0
+
+# Utilities
+python-dotenv>=0.19.0
+click>=8.1.0
+tqdm>=4.64.0
+requests>=2.28.0
+
+# Quality and Security
+pylint>=2.15.0
+black>=22.10.0
+bandit[toml]>=1.7.0
+safety>=2.3.0
+
+# Testing
+pytest>=7.2.0
+pytest-timeout>=2.1.0
+pytest-cov>=4.0.0

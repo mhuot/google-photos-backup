@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  google-photos-backup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: google-photos-backup
+    environment:
+      # Google Photos API Configuration
+      - GOOGLE_PHOTOS_CLIENT_ID=${GOOGLE_PHOTOS_CLIENT_ID}
+      - GOOGLE_PHOTOS_CLIENT_SECRET=${GOOGLE_PHOTOS_CLIENT_SECRET}
+      
+      # Backup Configuration
+      - BACKUP_DESTINATION=/app/backup
+      - CONVERT_HEIC=${CONVERT_HEIC:-true}
+      - JPEG_QUALITY=${JPEG_QUALITY:-95}
+      - MAX_CONCURRENT_DOWNLOADS=${MAX_CONCURRENT_DOWNLOADS:-5}
+      - USE_HASH_DEDUPLICATION=${USE_HASH_DEDUPLICATION:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # Security
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    
+    volumes:
+      # NAS backup destination - modify this path to your NAS mount
+      - ${BACKUP_DESTINATION:-/mnt/nas/google_photos_backup}:/app/backup
+      
+      # Credentials and tokens (persistent storage)
+      - ./credentials:/app/credentials
+      
+      # Configuration
+      - ./.env:/app/.env:ro
+    
+    working_dir: /app
+    
+    # Uncomment for interactive mode during setup
+    # stdin_open: true
+    # tty: true
+    
+    # Restart policy for automated backups
+    restart: unless-stopped
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Security context
+    user: "1000:1000"
+    
+    # Network configuration
+    networks:
+      - backup-network
+
+  # Optional: Backup scheduler service
+  backup-scheduler:
+    image: google-photos-backup
+    container_name: backup-scheduler
+    environment:
+      - GOOGLE_PHOTOS_CLIENT_ID=${GOOGLE_PHOTOS_CLIENT_ID}
+      - GOOGLE_PHOTOS_CLIENT_SECRET=${GOOGLE_PHOTOS_CLIENT_SECRET}
+      - BACKUP_DESTINATION=/app/backup
+      - CONVERT_HEIC=${CONVERT_HEIC:-true}
+      - JPEG_QUALITY=${JPEG_QUALITY:-95}
+      - MAX_CONCURRENT_DOWNLOADS=${MAX_CONCURRENT_DOWNLOADS:-3}
+      - USE_HASH_DEDUPLICATION=${USE_HASH_DEDUPLICATION:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    
+    volumes:
+      - ${BACKUP_DESTINATION:-/mnt/nas/google_photos_backup}:/app/backup
+      - ./credentials:/app/credentials
+      - ./.env:/app/.env:ro
+    
+    working_dir: /app
+    
+    # Run backup daily at 2 AM
+    command: >
+      sh -c "
+        echo '0 2 * * * cd /app && python main.py backup >> /app/backup/logs/cron.log 2>&1' | crontab -
+        && crond -f
+      "
+    
+    restart: unless-stopped
+    
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    
+    depends_on:
+      - google-photos-backup
+    
+    networks:
+      - backup-network
+    
+    # Only enable if you want automated scheduled backups
+    profiles:
+      - scheduler
+
+networks:
+  backup-network:
+    driver: bridge
+
+# Example usage:
+# 1. Setup: docker compose run --rm google-photos-backup python main.py setup
+# 2. One-time backup: docker compose run --rm google-photos-backup python main.py backup
+# 3. Scheduled backups: docker compose --profile scheduler up -d
+# 4. View logs: docker compose logs -f google-photos-backup
+# 5. Check status: docker compose run --rm google-photos-backup python main.py status
