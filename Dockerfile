@@ -25,7 +25,6 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y \
     libheif1 \
     libffi8 \
-    cron \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -42,8 +41,8 @@ WORKDIR /app
 # Copy application code
 COPY --chown=appuser:appuser . .
 
-# Create necessary directories
-RUN mkdir -p /app/backup /app/credentials /app/logs && \
+# Create necessary directories for takeout processing
+RUN mkdir -p /app/input /app/output /app/temp /app/logs && \
     chown -R appuser:appuser /app
 
 # Switch to non-root user
@@ -58,5 +57,5 @@ ENV PYTHONDONTWRITEBYTECODE=1
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import sys; sys.exit(0)"
 
-# Default command
-CMD ["python", "main.py", "--help"]
+# Default command - show takeout processor help
+CMD ["python", "takeout_processor.py", "--help"]

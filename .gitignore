@@ -30,16 +30,25 @@ ENV/
 
 # Configuration and secrets
 .env
-credentials.json
-token.json
-client_secret*.json
 
-# Backup data
+# Google Takeout archives and processing
+takeout-archives/
+*.zip
+takeout-*/
+
+# Processed backup data
 backup/
 photos/
+videos/
 albums/
 metadata/
 logs/
+temp/
+originals/
+duplicates/
+
+# Processing temporary files
+/tmp/takeout_*
 
 # IDE
 .vscode/

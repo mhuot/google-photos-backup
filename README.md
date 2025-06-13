@@ -1,347 +1,243 @@
-# Google Photos Backup Tool
+# Google Photos Takeout Processor
 
-A comprehensive Python application to backup your Google Photos library to local NAS storage with automatic HEIC to JPEG conversion, deduplication, and metadata preservation.
+A Python tool to process Google Takeout archives and organize your photo library on local/NAS storage with automatic HEIC to JPEG conversion, deduplication, and metadata preservation.
 
-## Problem Statement
+## Why Google Takeout?
 
-Google Photos provides excellent cloud storage but lacks direct export tools for personal backup. This tool solves the need for:
-- **Local ownership** of your photo library
-- **High-quality preservation** with format optimization
-- **Efficient storage** through deduplication
-- **Metadata preservation** for photo organization
-- **NAS integration** for personal cloud storage
+As of June 2024, Google has restricted new OAuth clients for the Photos Library API, making direct API access impractical for new users. Google Takeout remains the most reliable way to export your entire photo library.
 
 ## Features
 
-### Core Functionality
-- 📸 **Complete Google Photos backup** with OAuth2 authentication
+- 📦 **Process Google Takeout ZIP archives** efficiently
 - 🔄 **HEIC to JPEG conversion** at highest quality (95% default)
-- 🗂️ **Album organization** with individual album backup support
-- 🔍 **Hash-based deduplication** to prevent storage waste
-- 📊 **Metadata preservation** including EXIF data and timestamps
-- 🚀 **Concurrent downloads** for optimal performance
-- 📈 **Progress tracking** with detailed statistics
-- 🔒 **Security-focused** with credential encryption
-
-### Quality Assurance
-- ✅ **WCAG AAA compliance** for any web interfaces
-- 🧹 **Code quality** with Pylint scoring ≥8.0
-- 🔧 **PEP 8 compliance** with Black auto-formatting
-- 🛡️ **Security scanning** with Bandit
-- 📦 **Docker containerization** for easy deployment
-- 🧪 **Comprehensive testing** with pytest
+- 🗂️ **Smart organization** by date with metadata preservation
+- 🔍 **Hash-based deduplication** to prevent duplicate storage
+- 📊 **Preserve all metadata** from Google Photos
+- 🚀 **Fast processing** with progress tracking
+- 📈 **Detailed statistics** on processing results
 
 ## Quick Start
 
 ### Prerequisites
-- Python 3.9+ with venv support
-- Google Cloud Console account
-- NAS or local storage destination
+- Python 3.9+ 
+- Google Takeout export of your Photos library
+- Local or NAS storage destination
 
-### Step 1: Google Cloud Console Setup
+### Step 1: Export from Google Takeout
 
-**Create OAuth 2.0 Credentials:**
+1. **Go to [Google Takeout](https://takeout.google.com/)**
+2. **Deselect all** services
+3. **Select only "Google Photos"**
+4. **Choose export options:**
+   - File type: `.zip`
+   - Frequency: Export once
+   - File size: 50GB (for easier handling)
+5. **Wait for export** (Google will email when ready)
+6. **Download all ZIP files** to a local folder
 
-1. **Go to [Google Cloud Console](https://console.cloud.google.com/)**
-   - Create a new project or select existing one
-   - Project name: "Google Photos Backup" (or your preference)
+### Step 2: Install and Setup
 
-2. **Enable Google Photos Library API:**
-   - Navigate to "APIs & Services" → "Library"
-   - Search for "Photos Library API"
-   - Click "Enable"
-
-3. **Create OAuth 2.0 Credentials:**
-   - Go to "APIs & Services" → "Credentials"
-   - Click "Create Credentials" → "OAuth client ID"
-   - **Application type**: Choose "Desktop application"
-   - **Name**: "Google Photos Backup Tool"
-
-4. **Download credentials.json:**
-   - Click the download button (⬇️) next to your new client ID
-   - Save as `credentials.json` in your project directory
-
-### Step 2: Install and Configure
-
-1. **Clone and setup environment:**
 ```bash
+# Clone repository
 git clone <repository>
-cd heicgphoto
+cd google-photos-backup
+
+# Create virtual environment
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Setup backup directory structure
+python setup_backup_dirs.py /mnt/nas/photos
 ```
 
-2. **Configure your backup settings:**
+### Step 3: Process Your Photos
+
+**Process a single Takeout ZIP:**
 ```bash
-cp .env.example .env
+python takeout-processor.py path/to/takeout-001.zip --output /mnt/nas/photos
 ```
 
-Edit `.env` file with your settings:
+**Process multiple ZIP files:**
 ```bash
-# Required: Your backup destination
-BACKUP_DESTINATION=/mnt/nas/google_photos_backup
-
-# Optional: Customize quality and behavior
-CONVERT_HEIC=true
-JPEG_QUALITY=95
-MAX_CONCURRENT_DOWNLOADS=5
+python takeout-processor.py path/to/takeout-folder/ --output /mnt/nas/photos
 ```
 
-### Step 3: Run Your First Backup
+**Options:**
+- `--convert-heic` / `--no-convert-heic`: Control HEIC conversion (default: convert)
+- `--output` / `-o`: Specify output directory (required)
 
-**Initial setup and authentication:**
-```bash
-python main.py backup --dry-run  # Preview what will be backed up
+## Output Structure
+
+```
+output_directory/
+├── photos/           # Processed photos (JPEG, PNG)
+│   ├── 20230615_143022_IMG_1234.jpg
+│   ├── 20230615_144518_IMG_1235.jpg
+│   └── by-year/      # Optional year-based organization
+├── videos/           # Video files (MP4, MOV, etc.)
+│   ├── 20230615_150123_VID_001.mp4
+│   └── by-year/      # Optional year-based organization
+├── metadata/         # Original Google Photos metadata
+│   ├── 20230615_143022_IMG_1234.json
+│   └── ...
+├── logs/            # Processing logs and reports
+├── temp/            # Temporary extraction space
+├── originals/       # Original HEIC files (if preserving)
+└── duplicates/      # Detected duplicate files
 ```
 
-**Start full backup:**
-```bash
-python main.py backup
-```
-
-The first run will:
-1. Open your web browser for Google authentication
-2. Generate a `token.json` file for future use
-3. Start downloading and converting your photos
-
-### Next Steps (You're Done!)
-
-Now that you have `credentials.json` in your project directory:
-
-1. **Test the setup:**
-```bash
-python main.py status
-```
-
-2. **List your albums:**
-```bash
-python main.py albums
-```
-
-3. **Backup a specific album:**
-```bash
-python main.py backup --album-id ALBUM_ID_FROM_LIST
-```
-
-## Usage
-
-### Command Line Interface
-
-**Full backup:**
-```bash
-python main.py backup
-```
-
-**Backup specific album:**
-```bash
-python main.py albums  # List available albums
-python main.py backup --album-id ALBUM_ID
-```
-
-**Check status:**
-```bash
-python main.py status
-```
-
-**Dry run (preview only):**
-```bash
-python main.py backup --dry-run
-```
-
-### Docker Deployment
-
-**One-time backup:**
-```bash
-docker compose run --rm google-photos-backup python main.py backup
-```
-
-**Scheduled backups (daily at 2 AM):**
-```bash
-docker compose --profile scheduler up -d
-```
-
-**View logs:**
-```bash
-docker compose logs -f google-photos-backup
-```
-
-## Architecture
-
-```mermaid
-graph TD
-    A[Google Photos API] --> B[Authentication Layer]
-    B --> C[Media Item Retrieval]
-    C --> D[Download Manager]
-    D --> E[Image Processor]
-    E --> F[Format Converter]
-    F --> G[Deduplication Engine]
-    G --> H[NAS Storage]
-    
-    I[Configuration Manager] --> B
-    I --> D
-    I --> E
-    I --> G
-    
-    J[Metadata Extractor] --> K[JSON Storage]
-    E --> J
-    
-    L[Progress Tracker] --> M[Statistics Reporter]
-    D --> L
-    G --> L
-```
-
-### Component Overview
-
-| Component | Purpose | Key Features |
-|-----------|---------|--------------|
-| `GooglePhotosClient` | API integration | OAuth2, pagination, rate limiting |
-| `ImageProcessor` | Format handling | HEIC conversion, quality optimization |
-| `BackupManager` | Orchestration | Concurrent downloads, error handling |
-| `Config` | Settings management | Environment variables, validation |
+### Filename Format
+- Pattern: `YYYYMMDD_HHMMSS_originalname.ext`
+- Example: `20230615_143022_IMG_1234.jpg`
+- Timestamps extracted from Google metadata or file dates
 
 ## Configuration
 
-### Environment Variables
+### Environment Setup
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `BACKUP_DESTINATION` | `/mnt/nas/google_photos_backup` | NAS storage path |
-| `CONVERT_HEIC` | `true` | Enable HEIC to JPEG conversion |
-| `JPEG_QUALITY` | `95` | JPEG quality (1-100) |
-| `MAX_CONCURRENT_DOWNLOADS` | `5` | Parallel download limit |
-| `USE_HASH_DEDUPLICATION` | `true` | Enable duplicate detection |
+Create a `.env` file for configuration:
 
-### Directory Structure
-```
-backup_destination/
-├── photos/           # Downloaded and processed images
-├── albums/           # Album-specific organization
-├── metadata/         # JSON metadata files
-│   └── deduplication.json
-└── logs/             # Backup reports and logs
+```bash
+# Output directory for processed photos
+BACKUP_DESTINATION=/mnt/nas/google_photos_backup
+
+# HEIC conversion settings
+CONVERT_HEIC=true
+JPEG_QUALITY=95
+
+# Processing options
+USE_HASH_DEDUPLICATION=true
+PRESERVE_METADATA=true
 ```
 
-## Performance & Benchmarks
+## Performance & Storage
 
 ### Expected Performance
-- **Download speed:** 50-100 photos/minute (depends on connection)
+- **Processing speed:** 100-200 photos/minute (depends on size and HEIC conversion)
 - **HEIC conversion:** ~2 seconds per image
-- **Deduplication:** <1ms per file hash check
-- **Memory usage:** <512MB during normal operation
-- **Storage efficiency:** 20-30% reduction through deduplication
+- **Deduplication:** Prevents duplicate storage across multiple exports
+- **Memory usage:** <1GB during normal operation
 
-### Optimization Tips
-- Adjust `MAX_CONCURRENT_DOWNLOADS` based on bandwidth
-- Use SSD storage for faster processing
-- Enable deduplication for existing libraries
-- Schedule backups during off-peak hours
+### Storage Requirements
+- **Original photos:** 1:1 with Google Photos storage
+- **HEIC to JPEG:** May increase size by 10-30%
+- **Metadata:** ~1KB per photo
+- **Temporary space:** Equal to largest ZIP file
 
-## Security
+## Advanced Usage
 
-### Data Protection
-- ✅ OAuth2 token encryption at rest
-- ✅ No credential logging or exposure
-- ✅ Secure API communication (HTTPS only)
-- ✅ Docker container security hardening
-- ✅ Input validation and sanitization
+### Incremental Backups
 
-### Best Practices
-- Store credentials in environment variables
-- Use Docker for isolation
-- Regular security updates
-- Monitor access logs
+For ongoing backups after initial export:
+
+1. **Export only recent photos** from Google Takeout (select date range)
+2. **Process new export** to same output directory
+3. **Deduplication** will skip already processed photos
+
+### Custom Organization
+
+Modify `_get_timestamp()` in `takeout-processor.py` to customize file organization:
+- By year/month folders
+- By album names
+- By camera model
 
 ## Development
 
-### Setup Development Environment
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### Code Quality Checks
+### Code Quality
 ```bash
 # Format code
-black .
+black takeout-processor.py
 
-# Lint code (minimum score 8.0)
-pylint *.py
-
-# Security scan
-bandit -r .
+# Lint code
+pylint takeout-processor.py
 
 # Run tests
-pytest --timeout=300 --cov=.
+pytest tests/
 ```
 
-### Testing
-```bash
-# Fast tests only
-pytest -m "not slow"
-
-# Full test suite
-pytest --timeout=300
-
-# Coverage report
-pytest --cov=. --cov-report=html
-```
+### Contributing
+1. Fork repository
+2. Create feature branch
+3. Follow code standards (Black, Pylint ≥8.0)
+4. Add tests for new features
+5. Submit pull request
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Authentication failures:**
-- Verify Google Cloud Console API setup
-- Check credentials.json file location
-- Reset authentication: `python main.py reset-auth`
+**"No space left on device" during extraction:**
+- Ensure temp directory has space equal to largest ZIP
+- Set TMPDIR environment variable to different location
 
 **HEIC conversion errors:**
 - Install system dependencies: `apt-get install libheif-dev`
-- Check pillow-heif installation
-- Verify input file integrity
+- Update pillow-heif: `pip install --upgrade pillow-heif`
 
-**Network timeouts:**
-- Reduce concurrent downloads
-- Check internet connection stability
-- Increase retry attempts in configuration
+**Missing metadata:**
+- Google Takeout sometimes omits JSON files
+- Tool falls back to file modification dates
 
-**Storage issues:**
-- Verify NAS mount permissions
-- Check available disk space
-- Validate backup destination path
+**Slow processing:**
+- Disable HEIC conversion if not needed: `--no-convert-heic`
+- Process on SSD for faster I/O
+- Use smaller Takeout archives (10GB instead of 50GB)
 
-### Logs and Debugging
+## Docker Usage
+
+### Setup Environment
+
+Create a `.env` file with your paths:
 ```bash
-# Enable debug logging
-export LOG_LEVEL=DEBUG
-python main.py backup
-
-# Check backup reports
-ls /path/to/backup/logs/backup_report_*.json
+TAKEOUT_INPUT_PATH=/path/to/your/takeout-downloads
+BACKUP_DESTINATION=/path/to/your/nas/photos
+TEMP_PATH=/tmp/takeout-processing
 ```
 
-## Contributing
+### Docker Commands
 
-1. Fork repository
-2. Create feature branch
-3. Follow code quality standards (Black, Pylint ≥8.0)
-4. Add tests for new features
-5. Update documentation
-6. Submit pull request
+**Setup directories:**
+```bash
+docker compose run --rm google-photos-takeout python setup_backup_dirs.py /app/output
+```
+
+**Process single ZIP file:**
+```bash
+docker compose run --rm google-photos-takeout python main.py /app/input/takeout-001.zip --output /app/output
+```
+
+**Process all ZIP files:**
+```bash
+docker compose run --rm google-photos-takeout python main.py /app/input --output /app/output
+```
+
+**View logs:**
+```bash
+docker compose logs google-photos-takeout
+```
+
+## Directory Setup
+
+Before processing photos, set up the backup directory structure:
+
+```bash
+# Setup directory structure and check permissions
+python setup_backup_dirs.py /path/to/backup/location
+
+# The script will create:
+# - All necessary subdirectories
+# - Check disk space
+# - Verify write permissions
+# - Create a README file
+```
 
 ## License
 
-MIT License - See LICENSE file for details.
+Apache License 2.0 - See LICENSE file for details.
 
-## Support
+## Acknowledgments
 
-- 📖 Documentation: [Project Wiki](wiki)
-- 🐛 Bug Reports: [GitHub Issues](issues)
-- 💬 Discussion: [GitHub Discussions](discussions)
-- 📧 Contact: Maintainer email
-
----
-
-**Made with ❤️ for photo preservation and digital ownership**
+Built as a response to Google's Photos Library API restrictions, ensuring users maintain control over their photo libraries.
